@@ -1,4 +1,15 @@
 # easy_ViTPose
+
+This is a fork of [easy_ViTPose](https://github.com/JunkyByte/easy_ViTPose).
+
+Adds Dockerfile.
+before building, download [vitpose-s-wholebody.pth](https://huggingface.co/JunkyByte/easy_ViTPose/blob/main/torch/wholebody/vitpose-s-wholebody.pth) and put it on the root.
+
+
+Original README follows.
+<hr />
+
+# easy_ViTPose
 <p align="center">
 <img src="https://user-images.githubusercontent.com/24314647/236082274-b25a70c8-9267-4375-97b0-eddf60a7dfc6.png" width=375> easy_ViTPose
 </p>
