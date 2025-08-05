@@ -2,8 +2,30 @@
 
 This is a fork of [easy_ViTPose](https://github.com/JunkyByte/easy_ViTPose).
 
+## Building docker image
 Adds Dockerfile.
 before building, download [vitpose-s-wholebody.pth](https://huggingface.co/JunkyByte/easy_ViTPose/blob/main/torch/wholebody/vitpose-s-wholebody.pth) and put it on the root.
+
+```
+docker build -t hoikutech/easyvitpose:latest .
+```
+
+## Running docker image
+
+```
+docker run --rm --gpus all --name easyvitpose -p 8081:8000 hoikutech/easyvitpose:latest
+```
+
+サーバー自動起動じゃなくて、シェルで入る
+ocker run --rm --gpus all --name easyvitpose -it hoikutech/easyvitpose:latest bash
+
+docker run --rm --gpus all -v $PWD/output:/home/jovyan/output -v $PWD:/home/hoikutech/easy_ViTPose -v $PWD/data:/home/jovyan/data --name gazelle -it -p 8080:8000 hoikutech/gazelle:latest bash
+
+curlでファイルをPOSTしてみる。
+
+```
+curl -X POST -F "file=@./testfile.mp4" http://localhost:8081
+```
 
 
 Original README follows.

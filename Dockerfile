@@ -20,11 +20,13 @@ SHELL ["/bin/bash", "-c"]
 
 WORKDIR $HOME
 
+RUN apt-get update
+
 # Install exactly python 3.10
 #RUN apt-get update
 #RUN apt-get install -y curl python3-pip python3-venv python3-numpy python3-opencv python3-onnx
 
-RUN apt-get update && apt-get install -y software-properties-common && \
+RUN apt-get install -y software-properties-common && \
     add-apt-repository ppa:deadsnakes/ppa && \
     apt-get update && \
     apt-get install -y \
@@ -46,7 +48,15 @@ WORKDIR easy_ViTPose
 RUN pip install -e .
 RUN pip install -r requirements.txt
 
-
 #COPY vitpose-b-multi-coco.pth /home/$NB_USER/vitpose-b-multi-coco.pth
-COPY vitpose-s-wholebody.pth /home/$NB_USER/vitpose-s-wholebody.pth
+#COPY vitpose-s-wholebody.pth /home/$NB_USER/vitpose-s-wholebody.pth
+COPY vitpose-s-wholebody.pth .
 
+WORKDIR models
+RUN bash ./download.sh
+#COPY vitpose-l-ap10k.onnx /home/$NB_USER/
+#COPY vyolov8l.pt /home/$NB_USER/
+
+WORKDIR /home/$NB_USER/easy_ViTPose
+
+CMD ["python3", "apiserver.py"]
