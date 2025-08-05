@@ -1,75 +1,159 @@
 import os
 import subprocess
 import tempfile
-from flask import Flask, request, send_file
-from werkzeug.utils import secure_filename
+from pathlib import Path
+import http.server
+import socketserver
+import cgi # multipart/form-data の解析に使用
+import re
 
-app = Flask(__name__)
+# --- 元のプログラムから流用する設定と関数 ---
 
 # アップロードされたファイルを保存する一時ディレクトリ
-UPLOAD_FOLDER = 'tmp'
+UPLOAD_FOLDER = '/home/hoikutech/tmp'
 # コマンドの出力先
-OUTPUT_CSV = 'output/output.csv'
-
+OUTPUT_FOLDER = '/home/hoikutech/output/'
+OUTPUT_JSON = os.path.join(OUTPUT_FOLDER,'output_result.json')
 # 許可する拡張子
 ALLOWED_EXTENSIONS = {'mp4', 'avi', 'mov'}
+
+# 必要なディレクトリを作成
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+
+def change_filename_to_output(path_str: str) -> str:
+  """
+  パスのファイル名部分のみを'output'に変更
+  """
+  if not path_str:
+    return ""
+  p = Path(path_str)
+  new_name = 'output' + p.suffix
+  new_path_obj = p.with_name(new_name)
+  return str(new_path_obj)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-@app.route('/', methods=['POST'])
-def upload_file():
-    # ファイルがリクエストに含まれているかチェック
-    if 'file' not in request.files:
-        return 'No file part', 400
+# werkzeug.utils.secure_filename の簡易的な代替関数
+_filename_ascii_strip_re = re.compile(r'[^A-Za-z0-9_.-]')
+def simple_secure_filename(filename):
+    filename = str(filename)
+    # 不正な文字をアンダースコアに置換し、前後の不要な文字を削除
+    secure_name = str(_filename_ascii_strip_re.sub('_', filename)).strip('._')
+    return secure_name if secure_name else 'unsafe_filename'
 
-    file = request.files['file']
 
-    # ファイル名が空の場合
-    if file.filename == '':
-        return 'No selected file', 400
+# --- http.server を使ったサーバーの実装 ---
 
-    if file and allowed_file(file.filename):
-        # ファイル名を安全な名前に変換
-        filename = secure_filename(file.filename)
-        
-        # 一時フォルダにファイルを保存
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(filepath)
+class MyHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
+    """
+    POSTリクエストを処理するためのカスタムハンドラ
+    """
 
-        # コマンド実行
+    def do_POST(self):
+        # multipart/form-data のヘッダーを解析
+        form = cgi.FieldStorage(
+            fp=self.rfile,
+            headers=self.headers,
+            environ={'REQUEST_METHOD': 'POST',
+                     'CONTENT_TYPE': self.headers['Content-Type']}
+        )
+
+        # ファイルがリクエストに含まれているかチェック
+        if 'file' not in form:
+            self.send_error_response(400, 'No file part')
+            return
+
+        file_item = form['file']
+
+        # ファイル名が空の場合
+        if not file_item.filename:
+            self.send_error_response(400, 'No selected file')
+            return
+
+        filepath = None # finallyブロックで使うため、先に定義
         try:
-            command = [
-                'python3', 'run.py',
-                '-ep', 'cuda',
-                '-v', filepath,
-                '-csv', OUTPUT_CSV
-            ]
-            
-            # subprocess.runでコマンドを実行
-            # check=Trueで、コマンドがエラーを返した場合に例外が発生
-            subprocess.run(command, check=True)
-            
-            # 処理が完了したらCSVファイルをクライアントに返す
-            return send_file(
-                OUTPUT_CSV,
-                mimetype='text/csv',
-                as_attachment=True,
-                download_name='result.csv'
-            )
+            if file_item.file and allowed_file(file_item.filename):
+                # ファイル名を安全な名前に変換
+                secure_name = simple_secure_filename(file_item.filename)
+                filename = change_filename_to_output(secure_name)
+                
+                # 一時フォルダにファイルを保存
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                with open(filepath, 'wb') as f:
+                    f.write(file_item.file.read())
 
-        except subprocess.CalledProcessError as e:
-            # コマンド実行中にエラーが発生した場合
-            return f"Command execution failed: {e}", 500
-        except FileNotFoundError:
-            # run.pyやoutput.csvが見つからない場合
-            return f"File not found: {e}", 500
+                # --- コマンド実行 ---
+                try:
+                    command = [
+                        'python3','inference.py',
+                        '--input', filepath,
+                        '--output-path', OUTPUT_FOLDER, '--model',
+                        './vitpose-s-wholebody.pth',
+                        '--yolo', 'models/yolov8l.pt',
+                        '--model-name', 's', '--save-json'
+                    ]
+                    
+                    # subprocess.runでコマンドを実行
+                    subprocess.run(command, check=True)
+                    
+                    # 処理が完了したらJSONファイルをクライアントに返す
+                    self.send_file_response(
+                        OUTPUT_JSON,
+                        mimetype='application/json',
+                        download_name='result.json'
+                    )
+
+                except subprocess.CalledProcessError as e:
+                    self.send_error_response(500, f"Command execution failed: {e}")
+                except FileNotFoundError as e:
+                    self.send_error_response(500, f"File not found during command execution: {e}")
+                
+                return # 処理完了
+
+            else:
+                self.send_error_response(400, 'Invalid file type')
+        
         finally:
             # 処理が終了したらアップロードした動画ファイルを削除
-            os.remove(filepath)
-    
-    return 'Invalid file type', 400
+            if filepath and os.path.exists(filepath):
+                os.remove(filepath)
+
+    def send_error_response(self, code, message):
+        """エラーレスポンスを送信するヘルパー関数"""
+        self.send_response(code)
+        self.send_header('Content-Type', 'text/plain; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(message.encode('utf-8'))
+
+    def send_file_response(self, path, mimetype, download_name):
+        """ファイルレスポンスを送信するヘルパー関数"""
+        if not os.path.exists(path):
+            self.send_error_response(404, 'Result file not found.')
+            return
+            
+        try:
+            with open(path, 'rb') as f:
+                file_content = f.read()
+
+            self.send_response(200)
+            self.send_header('Content-Type', mimetype)
+            self.send_header('Content-Length', str(len(file_content)))
+            self.send_header('Content-Disposition', f'attachment; filename="{download_name}"')
+            self.end_headers()
+            self.wfile.write(file_content)
+        except Exception as e:
+            self.send_error_response(500, f"Failed to send file: {e}")
+
+
+def run_server(port=8000):
+    """サーバーを起動する"""
+    host = '0.0.0.0'
+    with socketserver.TCPServer((host, port), MyHTTPRequestHandler) as httpd:
+        print(f"Serving at http://{host}:{port}")
+        httpd.serve_forever()
+
 
 if __name__ == '__main__':
-    # 開発用サーバーを起動
-    app.run(debug=True, host='0.0.0.0', port=8000)
+    run_server()

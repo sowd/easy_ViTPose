@@ -42,14 +42,12 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3
 ## https://github.com/JunkyByte/easy_ViTPose
 ##################
 RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-RUN apt install -y git cmake
+RUN apt install -y git cmake wget
 RUN git clone https://github.com/sowd/easy_ViTPose.git
 WORKDIR easy_ViTPose
 RUN pip install -e .
 RUN pip install -r requirements.txt
 
-#COPY vitpose-b-multi-coco.pth /home/$NB_USER/vitpose-b-multi-coco.pth
-#COPY vitpose-s-wholebody.pth /home/$NB_USER/vitpose-s-wholebody.pth
 COPY vitpose-s-wholebody.pth .
 
 WORKDIR models
@@ -58,5 +56,11 @@ RUN bash ./download.sh
 #COPY vyolov8l.pt /home/$NB_USER/
 
 WORKDIR /home/$NB_USER/easy_ViTPose
+
+# Avoid opengl dependency error
+RUN apt update
+RUN pip uninstall -y opencv-python
+RUN pip install opencv-python-headless
+RUN pip install "numpy<2.0"
 
 CMD ["python3", "apiserver.py"]

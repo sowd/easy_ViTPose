@@ -3,29 +3,56 @@
 This is a fork of [easy_ViTPose](https://github.com/JunkyByte/easy_ViTPose).
 
 ## Building docker image
-Adds Dockerfile.
-before building, download [vitpose-s-wholebody.pth](https://huggingface.co/JunkyByte/easy_ViTPose/blob/main/torch/wholebody/vitpose-s-wholebody.pth) and put it on the root.
 
+First, download [vitpose-s-wholebody.pth](https://huggingface.co/JunkyByte/easy_ViTPose/blob/main/torch/wholebody/vitpose-s-wholebody.pth) and put it in the repository root folder.
+
+```
+git clone https://github.com/sowd/easy_ViTPose.git
+cd easy_ViTPose
+wget https://huggingface.co/JunkyByte/easy_ViTPose/blob/main/torch/wholebody/vitpose-s-wholebody.pth
+```
+
+Then build the image
 ```
 docker build -t hoikutech/easyvitpose:latest .
 ```
 
 ## Running docker image
 
+APIサーバー自動起動 on localhost:8081.
+
 ```
 docker run --rm --gpus all --name easyvitpose -p 8081:8000 hoikutech/easyvitpose:latest
 ```
 
 サーバー自動起動じゃなくて、シェルで入る
-ocker run --rm --gpus all --name easyvitpose -it hoikutech/easyvitpose:latest bash
 
-docker run --rm --gpus all -v $PWD/output:/home/jovyan/output -v $PWD:/home/hoikutech/easy_ViTPose -v $PWD/data:/home/jovyan/data --name gazelle -it -p 8080:8000 hoikutech/gazelle:latest bash
+```
+docker run --rm --gpus all --name easyvitpose -p 8081:8000 -it hoikutech/easyvitpose:latest bash
+```
 
+色々マウントしたい場合（data/フォルダとoutput/フォルダを掘っておく）
+```
+docker run --rm --gpus all -v $PWD:/home/hoikutech/easy_ViTPose -v $PWD/data:/home/hoikutech/data/ -v $PWD/output:/home/hoikutech/output/ --name easyvitpose -p 8081:8000 -it hoikutech/easyvitpose:latest bash
+```
+
+## Testing on API server
 curlでファイルをPOSTしてみる。
 
 ```
 curl -X POST -F "file=@./testfile.mp4" http://localhost:8081
+
+# curl -X POST -F "file=@../data/HoikuverseDataRepo/VisRef_IN_Cam_20250205_100000.mp4" http://localhost:8081
 ```
+
+## Inference
+
+コンテナ内で推定する。入力ファイル名から拡張子を取り、_result.json を足したファイルが、~/output/の下にできる
+
+```
+python3 inference.py --input [INFILE] --output-path ~/output/ --model ./vitpose-s-wholebody.pth --yolo models/yolov8l.pt --model-name s --save-json
+```
+
 
 
 Original README follows.

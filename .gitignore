@@ -12,4 +12,7 @@ outputs
 .ipynb_checkpoints
 easy_ViTPose.egg-info
 
+output
+data
+tmp
 vitpose-s-wholebody.pth

@@ -46,7 +46,7 @@ def inference(args):
     output_path = args.output_path
 
     # Output path
-    file_output_path = os.path.join(output_path, os.path.basename(input_path))
+    file_output_path =  output_path #os.path.join(output_path, os.path.basename(input_path))
     os.makedirs(file_output_path, exist_ok=True)
     og_ext = input_path[input_path.rfind('.'):]
     save_name_img = os.path.basename(input_path).replace(og_ext, f"_result{ext}")
@@ -142,7 +142,7 @@ def inference(args):
 
     if is_video and args.save_img:
         out_writer.release()
-    cv2.destroyAllWindows()
+    #cv2.destroyAllWindows()
 
 
 
