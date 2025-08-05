@@ -11,6 +11,12 @@ Just run from docker hub
 docker run --rm --gpus all --name easyvitpose -p 8081:8000 hoikutech/easyvitpose:latest
 ```
 
+自動起動/再起動モード
+```
+docker run -d --restart always --gpus all --name easyvitpose -p 8081:8000 hoikutech/ea
+syvitpose:latest
+```
+
 APIサーバー自動起動じゃなくて、シェルで入る
 ```
 docker run --rm --gpus all --name easyvitpose -p 8081:8000 -it hoikutech/easyvitpose:latest bash
