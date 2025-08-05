@@ -13,8 +13,7 @@ docker run --rm --gpus all --name easyvitpose -p 8081:8000 hoikutech/easyvitpose
 
 自動起動/再起動モード
 ```
-docker run -d --restart always --gpus all --name easyvitpose -p 8081:8000 hoikutech/ea
-syvitpose:latest
+docker run -d --restart always --gpus all --name easyvitpose -p 8081:8000 hoikutech/easyvitpose:latest
 ```
 
 APIサーバー自動起動じゃなくて、シェルで入る
