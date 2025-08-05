@@ -2,6 +2,42 @@
 
 This is a fork of [easy_ViTPose](https://github.com/JunkyByte/easy_ViTPose).
 
+## Running docker image
+
+APIサーバー自動起動 on localhost:8081.
+Just run from docker hub
+
+```
+docker run --rm --gpus all --name easyvitpose -p 8081:8000 hoikutech/easyvitpose:latest
+```
+
+APIサーバー自動起動じゃなくて、シェルで入る
+```
+docker run --rm --gpus all --name easyvitpose -p 8081:8000 -it hoikutech/easyvitpose:latest bash
+```
+
+色々マウントしたい場合（data/フォルダとoutput/フォルダを掘っておく）
+```
+docker run --rm --gpus all -v $PWD:/home/hoikutech/easy_ViTPose -v $PWD/data:/home/hoikutech/data/ -v $PWD/output:/home/hoikutech/output/ --name easyvitpose -p 8081:8000 -it hoikutech/easyvitpose:latest bash
+```
+
+## Testing on API server
+curlでファイルをPOSTしてみる。
+動けばjsonが返ってくるはず。
+
+```
+curl -X POST -F "file=@./testfile.mp4" http://localhost:8081
+```
+
+## Inference
+
+コンテナ内で手作業でAIを走らせる。
+入力ファイル名から拡張子を取り、_result.json を足したファイルが、~/output/の下にできる
+
+```
+python3 inference.py --input [INFILE] --output-path ~/output/ --model ./vitpose-s-wholebody.pth --yolo models/yolov8l.pt --model-name s --save-json
+```
+
 ## Building docker image
 
 First, download [vitpose-s-wholebody.pth](https://huggingface.co/JunkyByte/easy_ViTPose/blob/main/torch/wholebody/vitpose-s-wholebody.pth) and put it in the repository root folder.
@@ -17,41 +53,6 @@ Then build the image
 docker build -t hoikutech/easyvitpose:latest .
 ```
 
-## Running docker image
-
-APIサーバー自動起動 on localhost:8081.
-
-```
-docker run --rm --gpus all --name easyvitpose -p 8081:8000 hoikutech/easyvitpose:latest
-```
-
-サーバー自動起動じゃなくて、シェルで入る
-
-```
-docker run --rm --gpus all --name easyvitpose -p 8081:8000 -it hoikutech/easyvitpose:latest bash
-```
-
-色々マウントしたい場合（data/フォルダとoutput/フォルダを掘っておく）
-```
-docker run --rm --gpus all -v $PWD:/home/hoikutech/easy_ViTPose -v $PWD/data:/home/hoikutech/data/ -v $PWD/output:/home/hoikutech/output/ --name easyvitpose -p 8081:8000 -it hoikutech/easyvitpose:latest bash
-```
-
-## Testing on API server
-curlでファイルをPOSTしてみる。
-
-```
-curl -X POST -F "file=@./testfile.mp4" http://localhost:8081
-
-# curl -X POST -F "file=@../data/HoikuverseDataRepo/VisRef_IN_Cam_20250205_100000.mp4" http://localhost:8081
-```
-
-## Inference
-
-コンテナ内で推定する。入力ファイル名から拡張子を取り、_result.json を足したファイルが、~/output/の下にできる
-
-```
-python3 inference.py --input [INFILE] --output-path ~/output/ --model ./vitpose-s-wholebody.pth --yolo models/yolov8l.pt --model-name s --save-json
-```
 
 
 
